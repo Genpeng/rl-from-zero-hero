@@ -1,0 +1,37 @@
+# GRPO Training Configuration
+
+model:
+  name: "Qwen/Qwen2.5-1.5B-Instruct"
+  torch_dtype: "bfloat16"
+
+dataset:
+  name: "argilla/ultrafeedback-binarized-preferences-cleaned"
+  max_samples: 500
+  max_prompt_length: 256
+
+grpo:
+  num_generations: 8
+  learning_rate: 5.0e-6
+  per_device_train_batch_size: 2
+  gradient_accumulation_steps: 4
+  num_train_epochs: 1
+  warmup_ratio: 0.1
+  logging_steps: 5
+  save_steps: 50
+  bf16: true
+  max_completion_length: 256
+  kl_coef: 0.05
+  temperature: 0.8
+
+reward_model:
+  name: "Ray2333/GRM-Gemma-2B-sftreg"
+  torch_dtype: "bfloat16"
+
+training:
+  output_dir: "outputs/phase_03_grpo"
+
+# Experiments: try different group sizes
+group_size_experiments:
+  - 4    # Smaller group — faster but noisier advantage estimates
+  - 8    # Default — balanced
+  - 16   # Larger group — better estimates but more compute

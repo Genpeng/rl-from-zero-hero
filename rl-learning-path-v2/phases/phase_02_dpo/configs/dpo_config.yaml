@@ -1,0 +1,33 @@
+# DPO Training Configuration
+
+model:
+  name: "Qwen/Qwen2.5-1.5B-Instruct"
+  torch_dtype: "bfloat16"
+
+dataset:
+  name: "argilla/ultrafeedback-binarized-preferences-cleaned"
+  max_samples: 1000
+  max_length: 512
+
+dpo:
+  beta: 0.1
+  learning_rate: 5.0e-6
+  per_device_train_batch_size: 4
+  gradient_accumulation_steps: 4
+  num_train_epochs: 1
+  warmup_ratio: 0.1
+  logging_steps: 10
+  eval_steps: 50
+  save_steps: 100
+  bf16: true
+  max_length: 512
+  max_prompt_length: 256
+
+training:
+  output_dir: "outputs/phase_02_dpo"
+
+# Experiments: try these alternative beta values
+beta_experiments:
+  - 0.01   # Very aggressive — risk of overfitting to preferences
+  - 0.1    # Default — balanced
+  - 0.5    # Very conservative — model barely changes from SFT

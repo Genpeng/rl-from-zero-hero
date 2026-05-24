@@ -1,0 +1,44 @@
+# PPO Training Configuration
+# Each parameter has a comment explaining its role and how to tune it.
+
+model:
+  name: "Qwen/Qwen2.5-1.5B-Instruct"
+  torch_dtype: "bfloat16"
+
+reward_model:
+  name: "Ray2333/GRM-Gemma-2B-sftreg"
+  torch_dtype: "bfloat16"
+
+dataset:
+  name: "argilla/ultrafeedback-binarized-preferences-cleaned"
+  max_samples: 1000
+  max_prompt_length: 256
+
+ppo:
+  learning_rate: 1.0e-5
+  batch_size: 16
+  mini_batch_size: 4
+  ppo_epochs: 2
+  max_new_tokens: 128
+  kl_penalty: "kl"
+  init_kl_coef: 0.05
+  clip_range: 0.2
+  gamma: 1.0
+  lam: 0.95
+
+generation:
+  temperature: 0.7
+  top_p: 0.9
+  do_sample: true
+
+training:
+  num_train_epochs: 1
+  save_steps: 50
+  logging_steps: 10
+  output_dir: "outputs/phase_01_ppo"
+
+# Experiments: try these alternative KL coefficients
+kl_experiments:
+  - 0.01    # Very loose — watch for reward hacking
+  - 0.05    # Default — balanced
+  - 0.2     # Tight — model may barely learn
