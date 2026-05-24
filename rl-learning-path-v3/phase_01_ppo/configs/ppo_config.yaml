@@ -1,0 +1,112 @@
+# ============================================================================
+# PPO Training Configuration
+# ============================================================================
+# This file contains all hyperparameters for Phase 1 PPO training.
+# Scripts load their CONFIG dicts from these defaults; you can override
+# individual values via command-line args or by editing this file.
+#
+# Reference: Schulman et al. 2017, "Proximal Policy Optimization Algorithms"
+# ============================================================================
+
+# --- Model -------------------------------------------------------------------
+model:
+  name: "Qwen/Qwen2.5-0.5B"       # Base model (policy + reference + value init)
+  max_length: 256                   # Max input (prompt) token length
+  max_new_tokens: 128               # Max tokens to generate per response
+  torch_dtype: "bfloat16"           # Weight precision (bfloat16 recommended for A100)
+
+# --- LoRA (Parameter-Efficient Fine-Tuning) ----------------------------------
+lora:
+  r: 16                             # LoRA rank — higher = more capacity, more VRAM
+  alpha: 32                         # LoRA alpha — scaling factor (usually 2 * r)
+  dropout: 0.05                     # Dropout on LoRA layers
+  target_modules:                   # Which layers to apply LoRA to
+    - "q_proj"
+    - "v_proj"
+
+# --- Reward Model Training (01_train_reward_model.py) ------------------------
+reward_model:
+  max_samples: 2000                 # Number of preference pairs to train on
+  num_epochs: 1                     # Training epochs (1 is often sufficient)
+  learning_rate: 1.0e-4             # Learning rate for reward model LoRA
+  per_device_batch_size: 4          # Per-GPU batch size
+  gradient_accumulation_steps: 4    # Effective batch = batch_size * grad_accum
+  eval_split_ratio: 0.1             # Fraction held out for evaluation
+  output_dir: "./outputs/reward_model"
+
+# --- PPO Training (02_ppo_training.py) ---------------------------------------
+ppo:
+  # Rollout settings
+  batch_size: 16                    # Number of prompts per PPO rollout batch
+  mini_batch_size: 4                # Mini-batch size for PPO gradient updates
+  # Within each PPO step, the batch is split into mini-batches of this size.
+  # Smaller = more gradient updates per batch = more stable but slower.
+
+  # Optimization
+  learning_rate: 1.0e-5             # Policy model learning rate (lower than RM)
+  ppo_epochs: 4                     # Number of optimization passes per batch
+  # After collecting one batch of rollouts, PPO re-uses that data for this
+  # many optimization epochs. 4 is the standard from the original paper.
+
+  max_grad_norm: 1.0                # Gradient clipping norm
+
+  # PPO-specific
+  clip_range: 0.2                   # Epsilon in the clipped surrogate objective
+  # This is the ε in clip(r(θ), 1-ε, 1+ε). Default 0.2 means the ratio
+  # is clamped to [0.8, 1.2]. Smaller = more conservative updates.
+
+  vf_coef: 0.1                      # Value function loss coefficient
+  # Weight of the value loss relative to the policy loss. Lower values
+  # prioritize policy optimization over value accuracy.
+
+  # KL penalty
+  init_kl_coef: 0.05                # Initial KL penalty coefficient (beta)
+  # This is the β in: reward_total = reward_RM - β * KL
+  # Higher = policy stays closer to reference model.
+  # Lower = policy is freer to optimize reward (risk of reward hacking).
+
+  target_kl: 6.0                    # Target KL for adaptive coefficient
+  # If adaptive_kl is enabled, beta is adjusted to keep KL near this target.
+  # Set to null to disable adaptive KL.
+
+  kl_penalty: "kl"                  # KL penalty type: "kl", "abs", or "mse"
+
+  # Discount and GAE
+  gamma: 1.0                        # Discount factor (1.0 = no discounting)
+  # For language model alignment, gamma=1.0 is standard because we care
+  # about the total reward of the full response, not discounted returns.
+
+  lam: 0.95                         # GAE lambda for advantage estimation
+  # Balances bias vs variance in advantage estimates.
+  # 1.0 = low bias, high variance; 0.0 = high bias, low variance.
+
+  # Generation
+  temperature: 0.7                  # Sampling temperature during rollouts
+  top_k: 0                          # Top-k sampling (0 = disabled)
+  top_p: 1.0                        # Nucleus sampling (1.0 = disabled)
+
+  # Training scale
+  max_samples: 500                  # Number of prompts to train on
+  output_dir: "./outputs/ppo_model"
+
+# --- KL Ablation Experiment (03_ppo_experiment.py) ---------------------------
+experiment:
+  kl_coefs: [0.0, 0.05, 0.2]       # KL coefficients to compare
+  # 0.0:  No constraint — observe reward hacking
+  # 0.05: Light constraint — balanced setting
+  # 0.2:  Strong constraint — conservative, safe
+
+  max_samples: 200                  # Samples per run (smaller for speed)
+  # Each KL setting trains a fresh model, so total compute is 3x this.
+
+  eval_prompts:                     # Fixed prompts for qualitative comparison
+    - "\n\nHuman: How can I be more productive at work?\n\nAssistant:"
+    - "\n\nHuman: What should I know about investing money?\n\nAssistant:"
+    - "\n\nHuman: Can you explain climate change simply?\n\nAssistant:"
+
+# --- Hardware / Runtime -------------------------------------------------------
+runtime:
+  seed: 42                          # Random seed for reproducibility
+  report_to: "none"                 # Logging backend: "none", "wandb", "tensorboard"
+  bf16: true                        # Use bfloat16 (set to false if no GPU support)
+  logging_steps: 10                 # Log metrics every N steps

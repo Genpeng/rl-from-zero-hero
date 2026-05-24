@@ -1,0 +1,98 @@
+# ============================================================================
+# DPO Training Configuration
+# ============================================================================
+# This file contains all hyperparameters for Phase 2 DPO training.
+# Scripts load their CONFIG dicts from these defaults; you can override
+# individual values via command-line args or by editing this file.
+#
+# Reference: Rafailov et al. 2023, "Direct Preference Optimization:
+#            Your Language Model is Secretly a Reward Model"
+# ============================================================================
+
+# --- Model -------------------------------------------------------------------
+model:
+  name: "Qwen/Qwen2.5-0.5B"       # Base model (policy + reference)
+  max_length: 512                   # Max total sequence length (prompt + response)
+  max_prompt_length: 256            # Max prompt token length
+  max_new_tokens: 128               # Max tokens to generate for evaluation
+  torch_dtype: "bfloat16"           # Weight precision (bfloat16 recommended)
+
+# --- LoRA (Parameter-Efficient Fine-Tuning) ----------------------------------
+lora:
+  r: 16                             # LoRA rank — higher = more capacity, more VRAM
+  alpha: 32                         # LoRA alpha — scaling factor (usually 2 * r)
+  dropout: 0.05                     # Dropout on LoRA layers
+  target_modules:                   # Which layers to apply LoRA to
+    - "q_proj"
+    - "v_proj"
+
+# --- DPO Training (01_dpo_training.py) ---------------------------------------
+dpo:
+  # Core DPO parameter
+  beta: 0.1                         # KL constraint strength (temperature parameter)
+  # This is the β in the DPO loss: -log σ(β · margin).
+  # Higher β = policy stays closer to reference (conservative).
+  # Lower β = policy can deviate more (aggressive optimization).
+  # Standard range: 0.05 - 0.2. Default: 0.1.
+
+  # Dataset
+  max_samples: 2000                 # Number of preference pairs to train on
+  # HH-RLHF has ~170k pairs. Use a subset for fast iteration.
+
+  # Optimization
+  num_epochs: 1                     # Training epochs (1 is typical for DPO)
+  learning_rate: 5.0e-5             # Learning rate for LoRA parameters
+  # DPO typically uses a slightly higher learning rate than PPO because
+  # the loss is more stable (no generation during training).
+
+  warmup_ratio: 0.1                 # Warmup fraction of total training steps
+  max_grad_norm: 1.0                # Gradient clipping norm
+
+  # Batching
+  per_device_batch_size: 4          # Per-GPU batch size
+  gradient_accumulation_steps: 4    # Effective batch = batch_size * grad_accum
+  # Effective batch size = 4 * 4 = 16 preference pairs per update.
+  # Larger batches are more stable but use more memory.
+
+  # Logging and saving
+  logging_steps: 10                 # Log metrics every N steps
+  save_strategy: "epoch"            # When to save checkpoints: "epoch", "steps", "no"
+
+  # Generation (for post-training evaluation)
+  temperature: 0.7                  # Sampling temperature for demo generation
+  num_sample_prompts: 5             # Number of prompts for qualitative evaluation
+
+  output_dir: "./outputs/dpo_model"
+
+# --- PPO vs DPO Comparison (02_compare_ppo_dpo.py) ---------------------------
+comparison:
+  ppo_model_path: "./outputs/ppo_model"   # Path to Phase 1 PPO model
+  dpo_model_path: "./outputs/dpo_model"   # Path to Phase 2 DPO model
+
+  test_prompts:                     # Fixed prompts for side-by-side comparison
+    - "\n\nHuman: How can I improve my writing skills?\n\nAssistant:"
+    - "\n\nHuman: What are some healthy breakfast ideas?\n\nAssistant:"
+    - "\n\nHuman: Can you explain what machine learning is in simple terms?\n\nAssistant:"
+    - "\n\nHuman: How do I deal with stress at work?\n\nAssistant:"
+    - "\n\nHuman: What is the best way to learn a new language?\n\nAssistant:"
+
+# --- Beta Ablation Experiment (03_dpo_experiment.py) -------------------------
+experiment:
+  beta_values: [0.01, 0.1, 0.5]    # Beta values to compare
+  # 0.01: Aggressive — large policy changes, risk of overfitting
+  # 0.1:  Balanced — standard default, reasonable tradeoff
+  # 0.5:  Conservative — minimal policy change, safe but slow
+
+  max_samples: 1000                 # Samples per run (smaller for speed)
+  # Each beta value trains a fresh model, so total compute is 3x this.
+
+  eval_prompts:                     # Fixed prompts for qualitative comparison
+    - "\n\nHuman: How can I be more productive at work?\n\nAssistant:"
+    - "\n\nHuman: What should I know about investing money?\n\nAssistant:"
+    - "\n\nHuman: Can you explain climate change simply?\n\nAssistant:"
+
+# --- Hardware / Runtime -------------------------------------------------------
+runtime:
+  seed: 42                          # Random seed for reproducibility
+  report_to: "none"                 # Logging backend: "none", "wandb", "tensorboard"
+  bf16: true                        # Use bfloat16 (set to false if no GPU support)

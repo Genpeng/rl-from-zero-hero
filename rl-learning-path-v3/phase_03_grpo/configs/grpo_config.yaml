@@ -1,0 +1,119 @@
+# ============================================================================
+# GRPO Training Configuration
+# ============================================================================
+# This file contains all hyperparameters for Phase 3 GRPO training.
+# Scripts load their CONFIG dicts from code defaults; you can override
+# values by editing this file and loading it in your scripts.
+#
+# Reference: Shao et al. 2024, "DeepSeekMath: Pushing the Limits of
+#            Mathematical Reasoning in Open Language Models"
+#            DeepSeek-AI 2025, "DeepSeek-R1: Incentivizing Reasoning
+#            Capability in LLMs via Reinforcement Learning"
+# ============================================================================
+
+# --- Model -------------------------------------------------------------------
+model:
+  name: "Qwen/Qwen2.5-0.5B"       # Base model to fine-tune with GRPO
+  max_prompt_length: 512            # Max input prompt length (tokens)
+  max_completion_length: 512        # Max tokens to generate per completion
+  torch_dtype: "bfloat16"           # Weight precision (bfloat16 for modern GPUs)
+
+# --- LoRA (Parameter-Efficient Fine-Tuning) ----------------------------------
+lora:
+  r: 16                             # LoRA rank — higher = more capacity, more VRAM
+  alpha: 32                         # LoRA alpha — scaling factor (usually 2 * r)
+  dropout: 0.05                     # Dropout on LoRA layers
+  target_modules:                   # Which attention layers to apply LoRA to
+    - "q_proj"
+    - "v_proj"
+
+# --- GRPO Training (01_grpo_training.py) -------------------------------------
+grpo:
+  # Group sampling
+  num_generations: 4                 # Group size G: completions per prompt
+  # This is the core GRPO hyperparameter. For each training prompt, the model
+  # generates G candidate completions. Advantages are computed relative to
+  # this group: A_i = (r_i - mean(r)) / std(r).
+  #
+  # G=2:  Cheapest but noisiest. Advantages are binary.
+  # G=4:  Good balance — enough diversity for stable statistics.
+  # G=8:  Most stable advantages, but 2x the generation cost of G=4.
+  # G=16: Used in some DeepSeek experiments; expensive but very stable.
+
+  temperature: 0.7                   # Sampling temperature during generation
+  # Higher temperature = more diverse completions within the group.
+  # This helps explore different solution strategies but adds noise.
+  # Too low (< 0.3) and group members may be near-identical (useless).
+  # Too high (> 1.5) and completions become incoherent.
+
+  # Optimization
+  learning_rate: 5.0e-6              # Learning rate for LoRA parameters
+  # Lower than typical SFT learning rates. GRPO updates can be noisy
+  # (especially with small groups), so conservative LR helps stability.
+
+  per_device_batch_size: 4           # Number of prompts per device per step
+  gradient_accumulation_steps: 2     # Effective batch = batch_size * grad_accum
+  # Effective batch size = 4 * 2 = 8 prompts per gradient step.
+  # Each prompt generates G completions, so total completions per step = 8 * G.
+
+  num_epochs: 1                      # Number of passes over the training data
+  # GRPO typically needs fewer epochs than SFT because the group sampling
+  # provides diverse training signal even within a single pass.
+
+  # KL penalty
+  beta: 0.04                         # KL penalty coefficient
+  # Controls how much the policy can drift from the pretrained model.
+  # This serves the same purpose as the KL penalty in PPO.
+  #
+  # beta = 0.0:   No constraint (risk of mode collapse or degenerate outputs)
+  # beta = 0.01:  Light constraint — policy explores freely
+  # beta = 0.04:  Standard for GRPO on math tasks
+  # beta = 0.1:   Strong constraint — conservative updates
+
+  # Clipping (same as PPO)
+  # clip_range: 0.2                  # Epsilon in clipped surrogate objective
+  # The ratio pi_theta / pi_old is clamped to [1-eps, 1+eps].
+  # Default 0.2 is standard from PPO and works well for GRPO too.
+
+  # Training scale
+  max_samples: 1000                  # Number of GSM8K problems to train on
+  output_dir: "./outputs/grpo_model"
+
+# --- Reward Function ---------------------------------------------------------
+reward:
+  type: "math_correctness"           # Reward type (currently: math_correctness)
+  # For GSM8K, the reward function is simple:
+  #   R(completion) = 1.0  if extracted answer matches gold answer
+  #   R(completion) = 0.0  otherwise
+  #
+  # GRPO works with any reward function. Other possibilities:
+  #   - Code test pass rate (0.0 to 1.0 based on tests passed)
+  #   - Partial credit (0.5 for correct approach, wrong arithmetic)
+  #   - Learned reward model (as in PPO, but less common with GRPO)
+
+# --- Evaluation (02_grpo_evaluation.py) --------------------------------------
+evaluation:
+  max_samples: 100                   # Number of test problems
+  temperature: 0.0                   # Greedy decoding for deterministic eval
+  num_sample_outputs: 5              # Number of examples to display
+
+# --- Ablation Experiment (03_grpo_experiment.py) -----------------------------
+experiment:
+  group_sizes: [2, 4, 8]             # Group sizes to compare
+  # Each group size trains a fresh model, so total compute is 3x max_samples.
+  # Larger values like 16 are possible but slow on consumer hardware.
+
+  temperatures: [0.7]                # Default: single temperature
+  # Set to [0.5, 0.7, 1.0] to also ablate temperature.
+  # Use --ablate_temperature flag to enable this automatically.
+
+  max_samples: 500                   # Training samples per run (smaller for speed)
+  eval_samples: 50                   # Test problems per run
+
+# --- Hardware / Runtime -------------------------------------------------------
+runtime:
+  seed: 42                           # Random seed for reproducibility
+  report_to: "none"                  # Logging: "none", "wandb", "tensorboard"
+  bf16: true                         # Use bfloat16 (set false if unsupported)
+  logging_steps: 10                  # Log metrics every N steps
+  save_steps: 200                    # Save checkpoint every N steps
