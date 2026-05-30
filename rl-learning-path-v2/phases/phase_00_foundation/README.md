@@ -83,8 +83,9 @@ A measure of how different two probability distributions are. In RLHF:
 
 ### 📖 Reading
 
-- **Lilian Weng's blog post** "What is RLHF" — covers all the above with diagrams
-- Skim: Hugging Face RLHF blog post — shorter, more practical
+- **OpenAI Spinning Up** ["Part 1: Key Concepts in RL"](https://spinningup.openai.com/en/latest/spinningup/rl_intro.html) — covers Policy, Action, Reward, Trajectory precisely; skim sections on Value Functions (not needed yet)
+- **OpenAI Spinning Up** ["Part 3: Intro to Policy Optimization"](https://spinningup.openai.com/en/latest/spinningup/rl_intro3.html) — the Policy Gradient derivation explained step by step; focus on the intuition, not the code
+- **Hugging Face blog** ["Illustrating RLHF"](https://huggingface.co/blog/rlhf) — see how Policy, Reward, and KL Divergence come together in the full RLHF pipeline
 
 ---
 
@@ -126,8 +127,9 @@ This is just binary cross-entropy — "increase the score gap between chosen and
 
 ### 📖 Reading
 
-- Revisit InstructGPT paper Section 3.2 (reward model training)
-- Optional: "Learning to summarize with human feedback" (Stiennon et al., 2020) — earlier work that established the reward model approach
+- Revisit [InstructGPT paper](https://arxiv.org/abs/2203.02155) Section 3.2 (reward model training) — focus on how preference pairs become training signal
+- **RLHFlow** ["Reward Modeling Part 1: Bradley-Terry Model"](https://rlhflow.github.io/posts/2024-03-23-reward-modeling-bt/) — practical walkthrough of Bradley-Terry loss and how to train a reward model step by step
+- Optional: ["Learning to summarize with human feedback"](https://arxiv.org/abs/2009.01325) (Stiennon et al., 2020) — the earlier work that established the reward model approach; read if you want the full historical context
 
 ---
 
