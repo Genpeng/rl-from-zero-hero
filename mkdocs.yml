@@ -1,0 +1,68 @@
+site_name: "RL Learning Path: PPO, DPO, GRPO"
+site_description: "A self-contained learning path to master RL algorithms for LLM alignment"
+site_dir: site
+docs_dir: rl-learning-path-v2
+
+nav:
+  - Home: README.md
+  - Learning Phases:
+      - "Phase 0 — Foundation": phases/phase_00_foundation/README.md
+      - "Phase 1 — PPO": phases/phase_01_ppo/README.md
+      - "Phase 2 — DPO": phases/phase_02_dpo/README.md
+      - "Phase 3 — GRPO": phases/phase_03_grpo/README.md
+      - "Phase 4 — Capstone": phases/phase_04_capstone/README.md
+  - Study Aids:
+      - "Phase 0 Cheatsheet": study-aids/phase0_foundation_cheatsheet.md
+      - "Phase 1 Cheatsheet": study-aids/phase1_ppo_cheatsheet.md
+      - "Phase 2 Cheatsheet": study-aids/phase2_dpo_cheatsheet.md
+      - "Phase 3 Cheatsheet": study-aids/phase3_grpo_cheatsheet.md
+      - "Master Comparison Card": study-aids/master_comparison_card.md
+  - Reference:
+      - "Design Spec": docs/superpowers/specs/2026-04-21-rl-learning-path-design.md
+      - "Full Plan": docs/superpowers/plans/2026-04-21-rl-learning-path.md
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - toc.integrate
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: deep purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: deep purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+markdown_extensions:
+  - tables
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - def_list
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+exclude_docs: |
+  .venv/
+  .claude/
+  outputs/
+  __pycache__/
+  shared/
+  **/*.py
+  **/*.yaml
+  **/*.sh
+  **/*.txt
+  **/*.pyc
