@@ -1,0 +1,619 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LLM 中最重要的强化学习概念</title>
+  <meta name="description" content="LLM 强化学习核心概念速查与详细解释，包括 Policy、Reward、Advantage、PPO、KL Penalty、GRPO、DPO 等。">
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f3;
+      --paper: #ffffff;
+      --paper-soft: #fbfcf8;
+      --ink: #1d2523;
+      --muted: #65716d;
+      --line: #dce2da;
+      --line-strong: #c2cec7;
+      --accent: #0f766e;
+      --accent-dark: #115e59;
+      --accent-soft: #e3f4f0;
+      --mark: #f5c542;
+      --code-bg: #18201e;
+      --code-ink: #edf7f4;
+      --shadow: 0 18px 50px rgba(29, 37, 35, 0.10);
+      --radius: 8px;
+      --content: 980px;
+      --toc: 260px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+      background: var(--bg);
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      line-height: 1.72;
+      text-rendering: optimizeLegibility;
+    }
+
+    a { color: var(--accent-dark); text-decoration-thickness: 0.08em; text-underline-offset: 0.18em; }
+    a:hover { color: var(--accent); }
+
+    .skip-link {
+      position: absolute;
+      left: 1rem;
+      top: -4rem;
+      z-index: 100;
+      padding: 0.6rem 0.8rem;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      transition: top 0.16s ease;
+    }
+
+    .skip-link:focus { top: 1rem; }
+
+    .doc-header {
+      border-bottom: 1px solid var(--line);
+      background: var(--paper);
+    }
+
+    .doc-header-inner {
+      width: min(calc(100% - 32px), calc(var(--content) + var(--toc) + 64px));
+      margin: 0 auto;
+      padding: 46px 0 34px;
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--accent-dark);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 920px;
+      font-size: clamp(2rem, 4vw, 4rem);
+      line-height: 1.08;
+      letter-spacing: 0;
+      color: var(--ink);
+    }
+
+    .lead {
+      max-width: 760px;
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: 1.08rem;
+    }
+
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 22px;
+    }
+
+    .meta-pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      background: var(--paper-soft);
+      font-size: 0.9rem;
+      white-space: nowrap;
+    }
+
+    .page-shell {
+      width: min(calc(100% - 32px), calc(var(--content) + var(--toc) + 64px));
+      margin: 28px auto 72px;
+      display: grid;
+      grid-template-columns: var(--toc) minmax(0, var(--content));
+      gap: 32px;
+      align-items: start;
+    }
+
+    .toc {
+      position: sticky;
+      top: 18px;
+      max-height: calc(100vh - 36px);
+      overflow: auto;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.86);
+      box-shadow: 0 10px 24px rgba(29, 37, 35, 0.06);
+    }
+
+    .toc-title {
+      margin: 0 0 10px;
+      color: var(--ink);
+      font-size: 0.86rem;
+      font-weight: 750;
+    }
+
+    .toc nav {
+      display: grid;
+      gap: 2px;
+    }
+
+    .toc a {
+      display: block;
+      padding: 6px 8px;
+      border-radius: 6px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.35;
+      text-decoration: none;
+    }
+
+    .toc a:hover,
+    .toc a:focus {
+      color: var(--accent-dark);
+      background: var(--accent-soft);
+      outline: none;
+    }
+
+    .toc-subitem { padding-left: 20px !important; font-size: 0.84rem !important; }
+
+    .article {
+      min-width: 0;
+      padding: 42px clamp(20px, 4vw, 58px) 56px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+
+    .article > *:first-child { margin-top: 0; }
+    .article > *:last-child { margin-bottom: 0; }
+
+    h2 {
+      scroll-margin-top: 24px;
+      margin: 48px 0 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+      font-size: clamp(1.36rem, 2vw, 1.85rem);
+      line-height: 1.25;
+      letter-spacing: 0;
+      color: var(--ink);
+    }
+
+    h2:first-child {
+      margin-top: 0;
+      padding-top: 0;
+      border-top: 0;
+    }
+
+    h3 {
+      margin: 32px 0 10px;
+      font-size: 1.18rem;
+      line-height: 1.32;
+      letter-spacing: 0;
+    }
+
+    p { margin: 0 0 16px; }
+
+    blockquote {
+      margin: 20px 0 26px;
+      padding: 16px 18px;
+      border-left: 4px solid var(--accent);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      background: var(--accent-soft);
+      color: #173f3b;
+      font-weight: 650;
+    }
+
+    blockquote p { margin: 0; }
+
+    ul,
+    ol {
+      margin: 0 0 18px 1.35rem;
+      padding: 0;
+    }
+
+    li + li { margin-top: 4px; }
+
+    .table-wrap {
+      width: 100%;
+      margin: 18px 0 28px;
+      overflow-x: auto;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: var(--paper);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 680px;
+      font-size: 0.94rem;
+      line-height: 1.5;
+    }
+
+    .wide-table table { min-width: 1120px; }
+    .compact-table table { min-width: 520px; }
+
+    th,
+    td {
+      padding: 11px 12px;
+      vertical-align: top;
+      border-bottom: 1px solid var(--line);
+      border-right: 1px solid var(--line);
+    }
+
+    th:last-child,
+    td:last-child { border-right: 0; }
+    tbody tr:last-child td { border-bottom: 0; }
+
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #edf4f1;
+      color: #1a3632;
+      font-weight: 760;
+      text-align: left;
+    }
+
+    tbody tr:nth-child(even) td { background: #fafbf8; }
+
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 0.92em;
+    }
+
+    p code,
+    li code,
+    td code {
+      padding: 0.08rem 0.28rem;
+      border-radius: 5px;
+      background: #edf0ea;
+      color: #263331;
+    }
+
+    pre {
+      margin: 18px 0 26px;
+      overflow: auto;
+      padding: 18px;
+      border-radius: var(--radius);
+      background: var(--code-bg);
+      color: var(--code-ink);
+      line-height: 1.58;
+    }
+
+    pre code {
+      font-size: 0.9rem;
+      white-space: pre;
+    }
+
+    .math-block {
+      margin: 18px 0 26px;
+      overflow-x: auto;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper-soft);
+      text-align: center;
+    }
+
+    .article strong { color: var(--ink); }
+
+    .footer-note {
+      width: min(calc(100% - 32px), calc(var(--content) + var(--toc) + 64px));
+      margin: -44px auto 48px;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    @media (max-width: 1060px) {
+      .page-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .toc {
+        position: static;
+        max-height: none;
+      }
+
+      .toc nav {
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      }
+    }
+
+    @media (max-width: 680px) {
+      .doc-header-inner {
+        padding: 32px 0 26px;
+      }
+
+      .page-shell {
+        width: min(calc(100% - 20px), calc(var(--content) + var(--toc)));
+        margin-top: 18px;
+      }
+
+      .article {
+        padding: 26px 16px 36px;
+      }
+
+      .meta-pill {
+        width: 100%;
+        justify-content: center;
+        border-radius: var(--radius);
+      }
+
+      table { font-size: 0.88rem; }
+      th, td { padding: 9px 10px; }
+    }
+
+    @media print {
+      body { background: #fff; }
+      .doc-header { border-bottom: 0; }
+      .page-shell { display: block; width: 100%; margin: 0; }
+      .toc { display: none; }
+      .article { border: 0; box-shadow: none; padding: 0; }
+      .footer-note { margin: 24px 0 0; width: 100%; }
+      a { color: inherit; text-decoration: none; }
+      .table-wrap { overflow: visible; }
+      table { min-width: 0 !important; font-size: 0.78rem; }
+      h2 { page-break-after: avoid; }
+      pre, blockquote, table { page-break-inside: avoid; }
+    }
+  </style>
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <header class="doc-header">
+    <div class="doc-header-inner">
+      <p class="eyebrow">LLM RL Reading Note</p>
+      <h1>LLM 中最重要的强化学习概念</h1>
+      <p class="lead">把语言生成看作序列决策问题，用 reward 信号优化 policy，并用 KL 等约束避免模型为了 reward 走偏。</p>
+      <div class="meta-row" aria-label="Document summary">
+        <span class="meta-pill">Cheatsheet + detailed notes</span>
+        <span class="meta-pill">15 core concepts</span>
+        <span class="meta-pill">Generated 2026-05-31</span>
+      </div>
+    </div>
+  </header>
+  <div class="page-shell">
+    <aside class="toc" aria-label="Table of contents">
+      <p class="toc-title">Contents</p>
+      <nav>
+<a class="" href="#cheatsheet-核心概念对比表">Cheatsheet：核心概念对比表</a>
+<a class="" href="#1-policy-llm-本身就是-policy">1. Policy：LLM 本身就是 Policy</a>
+<a class="" href="#2-reward-什么叫-好回答">2. Reward：什么叫“好回答”</a>
+<a class="" href="#3-return-优化整段生成的总收益">3. Return：优化整段生成的总收益</a>
+<a class="" href="#4-advantage-这个回答比预期好多少">4. Advantage：这个回答比预期好多少</a>
+<a class="" href="#5-value-function-模型对未来收益的预测">5. Value Function：模型对未来收益的预测</a>
+<a class="" href="#6-on-policy-用当前模型采样-再更新当前模型">6. On-policy：用当前模型采样，再更新当前模型</a>
+<a class="" href="#7-exploration-模型要尝试不同回答">7. Exploration：模型要尝试不同回答</a>
+<a class="" href="#8-kl-penalty-不要让模型偏离原模型太远">8. KL Penalty：不要让模型偏离原模型太远</a>
+<a class="" href="#9-ppo-经典-rlhf-的核心算法">9. PPO：经典 RLHF 的核心算法</a>
+<a class="" href="#10-credit-assignment-整段回答得分-怎么分配到每个-token">10. Credit Assignment：整段回答得分，怎么分配到每个 token？</a>
+<a class="" href="#11-reward-hacking-模型学会骗-reward">11. Reward Hacking：模型学会骗 Reward</a>
+<a class="" href="#12-distribution-shift-训练时和真实使用时分布不同">12. Distribution Shift：训练时和真实使用时分布不同</a>
+<a class="" href="#13-off-policy-offline-rl-能不能用旧数据训练">13. Off-policy / Offline RL：能不能用旧数据训练？</a>
+<a class="" href="#14-actor-critic-policy-model-value-model">14. Actor-Critic：Policy Model + Value Model</a>
+<a class="" href="#15-entropy-保持输出多样性">15. Entropy：保持输出多样性</a>
+<a class="" href="#最小必学清单">最小必学清单</a>
+<a class="" href="#一句话总结">一句话总结</a>
+      </nav>
+    </aside>
+    <main id="content" class="article">
+<p>对 LLM 来说，强化学习（RL）的核心不是“怎么让智能体在 Atari 里玩游戏”，而是：</p>
+<blockquote><p>如何把语言生成看成一个序列决策问题，并用 reward 信号去优化 policy。</p></blockquote>
+<p>下面这些概念可以按重要程度来理解。</p>
+<h2 id="cheatsheet-核心概念对比表">Cheatsheet：核心概念对比表</h2>
+<div class="table-wrap wide-table" role="region" aria-label="Scrollable table" tabindex="0"><table><col><col><col><col><col><col><thead><tr><th>概念</th><th>一句话理解</th><th>在 LLM 中的对应</th><th>主要作用</th><th>容易混淆或注意点</th><th>相关方法 / 关键词</th></tr></thead><tbody><tr><td>Policy</td><td>在某个状态下选择动作的概率分布</td><td>LLM 的 next-token distribution</td><td>决定模型会生成什么 token 和回答</td><td>LLM 不只是文本模型，也可以看成逐 token 决策的 stochastic policy</td><td>RLHF、RLAIF、RLVR、GRPO</td></tr>
+<tr><td>Reward</td><td>判断结果好坏的分数</td><td>对完整 response 的质量评分</td><td>给 policy 提供优化方向</td><td>LLM reward 通常是 sequence-level，不是每个 token 都有即时 reward</td><td>reward model、verifier、human preference</td></tr>
+<tr><td>Trajectory</td><td>一次完整的状态-动作序列</td><td>从 prompt 到完整 response 的生成过程</td><td>RL 优化的基本样本单位</td><td>在 LLM 中通常就是一条 completion，而不是游戏里的多步环境交互记录</td><td>rollout、completion、episode</td></tr>
+<tr><td>Return</td><td>从当前时刻开始累积的总收益</td><td>一整段回答最终得到的总分</td><td>表示整段生成的优化目标</td><td>LLM 场景常可近似为最终 response reward，但会带来 credit assignment 问题</td><td>outcome reward、discounted return</td></tr>
+<tr><td>Advantage</td><td>当前动作比平均预期好多少</td><td>某个回答比同状态下平均回答好多少</td><td>降低 policy gradient 方差，让更新更稳定</td><td>不是 reward 本身，而是 reward 相对 baseline 的差值</td><td>PPO、GRPO、actor-critic</td></tr>
+<tr><td>Value Function</td><td>预测某个状态未来能拿多少分</td><td>从当前 partial response 继续写，预计最终 reward 多高</td><td>用来估计 advantage</td><td>value model / critic 不是 reward model；前者预测期望收益，后者评价结果质量</td><td>value head、critic、baseline</td></tr>
+<tr><td>Policy Gradient</td><td>直接调整 policy，让高收益动作概率上升</td><td>提高高 reward token 序列的生成概率，降低低 reward 序列概率</td><td>把 reward 信号转成模型参数更新</td><td>reward 通常很稀疏，所以梯度估计噪声大</td><td>REINFORCE、PPO、GRPO</td></tr>
+<tr><td>On-policy</td><td>用当前 policy 采样，再更新当前 policy</td><td>当前 LLM 生成 responses，打分后再训练当前 LLM</td><td>保证训练数据分布和当前模型接近</td><td>数据不能太旧；因此比 SFT 更贵，需要反复采样和打分</td><td>PPO、online RLHF</td></tr>
+<tr><td>Exploration</td><td>尝试不同动作以发现更高 reward</td><td>用 sampling 生成多样回答</td><td>避免模型只沿着 greedy decoding 的固定路径优化</td><td>太弱发现不了好答案，太强会增加噪声和不稳定</td><td>temperature、top-p、top-k、best-of-n</td></tr>
+<tr><td>KL Penalty</td><td>限制新 policy 不要偏离参考 policy 太远</td><td>约束 RL 后模型不要离 SFT / reference model 太远</td><td>防止 reward hacking 和能力漂移</td><td>KL 太强学不动，太弱容易为了 reward 走偏</td><td>reference model、KL constraint、PPO</td></tr>
+<tr><td>PPO</td><td>小步更新 policy 的经典 RLHF 算法</td><td>采样回答、打分、算 advantage、加 KL、更新 policy 和 value</td><td>曾是 RLHF 的标准训练范式</td><td>复杂、成本高，需要 value function 和 on-policy 数据</td><td>clipping、KL penalty、actor-critic</td></tr>
+<tr><td>Credit Assignment</td><td>判断最终得分应该归因到哪些动作</td><td>整段回答得分后，要判断哪些 token / 推理步骤贡献了结果</td><td>解决长序列、稀疏 reward 下的学习难题</td><td>最终答案错了，不代表所有 token 都错；最终答案对了，也不代表推理可靠</td><td>process reward、step-level reward、verifier</td></tr>
+<tr><td>Reward Hacking</td><td>模型学会利用 reward 漏洞</td><td>输出 reward model 喜欢但真实质量不高的回答</td><td>是 LLM RL 必须防范的失败模式</td><td>reward curve 上升不等于真实能力提升</td><td>eval、OOD test、safety eval、human review</td></tr>
+<tr><td>Distribution Shift</td><td>训练分布和真实使用分布不同</td><td>模型在训练 prompts 上表现好，但真实用户问题上退化</td><td>提醒 RL 后必须做泛化和回归评估</td><td>benchmark 提升可能掩盖真实体验下降或能力遗忘</td><td>held-out eval、adversarial eval、regression test</td></tr>
+<tr><td>Offline Preference Optimization</td><td>用已有偏好数据直接优化 policy</td><td>不在线采样，直接用 preference pairs 训练 LLM</td><td>降低 online RLHF 的复杂度和成本</td><td>DPO 等方法和 RLHF 目标相关，但不等同于传统 RL 算法</td><td>DPO、IPO、KTO、ORPO、SimPO</td></tr>
+<tr><td>Actor-Critic</td><td>actor 负责行动，critic 负责估值</td><td>actor 是生成回答的 LLM；critic 是 value head / value model</td><td>PPO-style RLHF 的常见架构</td><td>critic 预测期望 reward，reward model 给结果打分，两者不是一回事</td><td>actor、critic、reward model、reference model</td></tr>
+<tr><td>Entropy</td><td>policy 的随机性或分散程度</td><td>token distribution 有多分散</td><td>维持输出多样性和 exploration</td><td>entropy 太低容易模板化，太高容易不稳定</td><td>entropy bonus、mode collapse</td></tr></tbody></table></div>
+<h2 id="1-policy-llm-本身就是-policy">1. Policy：LLM 本身就是 Policy</h2>
+<p>在 RL 里，policy 通常写作：</p>
+<div class="math-block">$$
+\pi(a \mid s)
+$$</div>
+<p>意思是：在状态 $s$ 下，选择动作 $a$ 的概率。</p>
+<p>对 LLM 来说：</p>
+<div class="table-wrap compact-table" role="region" aria-label="Scrollable table" tabindex="0"><table><col><col><thead><tr><th>RL 概念</th><th>LLM 中的对应含义</th></tr></thead><tbody><tr><td>state</td><td>prompt + 已经生成的 tokens</td></tr>
+<tr><td>action</td><td>下一个 token</td></tr>
+<tr><td>policy</td><td>LLM 的 next-token distribution</td></tr>
+<tr><td>trajectory</td><td>完整生成的一段 response</td></tr>
+<tr><td>episode</td><td>一次从 prompt 到完整回答的生成过程</td></tr></tbody></table></div>
+<p>所以，一个 LLM 可以被看成：</p>
+<blockquote><p>一个在文本空间中逐 token 决策的 stochastic policy。</p></blockquote>
+<p>这点非常重要。RLHF、RLAIF、RLVR 本质上都是在改这个 policy，让它更倾向生成高 reward 的回答。</p>
+<h2 id="2-reward-什么叫-好回答">2. Reward：什么叫“好回答”</h2>
+<p>RL 里的 reward 是优化目标。对 LLM 来说，reward 可能来自几种来源：</p>
+<div class="table-wrap compact-table" role="region" aria-label="Scrollable table" tabindex="0"><table><col><col><thead><tr><th>类型</th><th>例子</th></tr></thead><tbody><tr><td>Human preference reward</td><td>人类更喜欢 A 回答而不是 B 回答</td></tr>
+<tr><td>Reward model</td><td>训练一个模型给回答打分</td></tr>
+<tr><td>Rule-based reward</td><td>代码是否通过测试、数学答案是否正确</td></tr>
+<tr><td>Verifier reward</td><td>verifier 判断推理或答案是否正确</td></tr>
+<tr><td>AI feedback reward</td><td>由另一个模型评价回答质量</td></tr></tbody></table></div>
+<p>LLM 里的 reward 通常不是每个 token 都给，而是整段回答结束后给一个 scalar reward。</p>
+<p>例如：</p>
+<pre><code class="language-text">Prompt: 解释什么是 Goodhart&#39;s Law
+Response: ...
+Reward: 0.83</code></pre>
+<p>这和很多游戏环境不同。游戏里可能每一步都有 reward；LLM 里经常是 sparse / sequence-level reward。</p>
+<h2 id="3-return-优化整段生成的总收益">3. Return：优化整段生成的总收益</h2>
+<p>Return 是从当前时刻开始累积的 reward。经典 RL 里常写作：</p>
+<div class="math-block">$$
+G_t = \sum_{k=t}^{T} \gamma^{k-t} r_k
+$$</div>
+<p>但在 LLM RLHF 里，很多时候可以近似理解为：</p>
+<blockquote><p>这整段回答最后得了多少分。</p></blockquote>
+<p>也就是说，LLM 不只是优化某个 token 对不对，而是优化整段 completion 的质量。</p>
+<p>这会带来一个问题：credit assignment。</p>
+<p>如果一段回答 reward 很高，到底是哪些 token 贡献了好结果？如果 reward 很低，错在哪几个 token？这就是 LLM RL 里的核心难点之一。</p>
+<h2 id="4-advantage-这个回答比预期好多少">4. Advantage：这个回答比预期好多少</h2>
+<p>Advantage 衡量的是：</p>
+<div class="math-block">$$
+A(s,a) = Q(s,a) - V(s)
+$$</div>
+<p>直觉上：</p>
+<blockquote><p>这个动作比模型在当前状态下平均会做的选择好多少？</p></blockquote>
+<p>在 LLM 里，可以理解为：</p>
+<blockquote><p>这次生成的回答，比模型通常会给出的回答好多少？</p></blockquote>
+<p>PPO、GRPO、actor-critic 方法都非常依赖 advantage 的估计。</p>
+<p>为什么 advantage 重要？因为直接用 reward 更新 policy 方差很大。Advantage 相当于减去一个 baseline，让更新更稳定。</p>
+<p>例如：</p>
+<div class="table-wrap wide-table" role="region" aria-label="Scrollable table" tabindex="0"><table><col><col style="text-align:right"><col style="text-align:right"><col style="text-align:right"><col><thead><tr><th>Response</th><th style="text-align:right">Reward</th><th style="text-align:right">Baseline</th><th style="text-align:right">Advantage</th><th>更新方向</th></tr></thead><tbody><tr><td>A</td><td style="text-align:right">0.8</td><td style="text-align:right">0.6</td><td style="text-align:right">+0.2</td><td>比预期好，应提高它的概率</td></tr>
+<tr><td>B</td><td style="text-align:right">0.5</td><td style="text-align:right">0.6</td><td style="text-align:right">-0.1</td><td>比预期差，应降低它的概率</td></tr></tbody></table></div>
+<h2 id="5-value-function-模型对未来收益的预测">5. Value Function：模型对未来收益的预测</h2>
+<p>Value function 写作：</p>
+<div class="math-block">$$
+V(s)
+$$</div>
+<p>它估计：</p>
+<blockquote><p>从当前状态继续生成，最终大概能得到多少 reward。</p></blockquote>
+<p>在传统 PPO RLHF 中，通常会给 LLM 加一个 value head，让模型同时预测：</p>
+<ol><li>下一个 token 的概率；</li><li>当前状态的 value。</li></ol>
+<p>这个 value 主要用于估计 advantage。</p>
+<p>不过在一些较新的 LLM RL 方法里，比如 GRPO，一种思路是不用单独训练 value model，而是通过 group 内多个回答的相对 reward 来估计 advantage。</p>
+<h2 id="6-on-policy-用当前模型采样-再更新当前模型">6. On-policy：用当前模型采样，再更新当前模型</h2>
+<p>PPO 是 on-policy 方法。</p>
+<p>意思是：你要用当前 policy 生成数据，然后用这些数据更新这个 policy。数据不能太旧，否则分布会偏。</p>
+<p>对 LLM 来说，流程大概是：</p>
+<pre><code class="language-text">当前 LLM 生成多个 responses
+→ reward model / verifier 打分
+→ 计算 advantage
+→ 用 PPO / GRPO 更新 LLM
+→ 得到新 policy
+→ 再重新采样</code></pre>
+<p>这个概念很重要，因为它解释了为什么 RLHF 通常比 SFT 更贵：</p>
+<ul><li>SFT 可以反复使用固定数据集；</li><li>on-policy RL 需要不断生成新样本；</li><li>每轮还要打 reward；</li><li>训练分布会随着 policy 改变而变化。</li></ul>
+<h2 id="7-exploration-模型要尝试不同回答">7. Exploration：模型要尝试不同回答</h2>
+<p>RL 需要 exploration。对 LLM 来说，exploration 通常来自采样：</p>
+<ul><li>temperature；</li><li>top-p；</li><li>top-k；</li><li>多 response sampling；</li><li>diverse decoding。</li></ul>
+<p>如果模型总是 greedy decoding，就很难发现更高 reward 的回答。</p>
+<p>但 exploration 太强也会有问题：</p>
+<ul><li>输出质量差；</li><li>reward noise 大；</li><li>容易学到奇怪策略；</li><li>训练不稳定。</li></ul>
+<p>所以 LLM RL 里通常会采样多个回答，然后根据 reward 区分好坏。</p>
+<p>这和 RLVR / GRPO 的思想很相关：对同一个 prompt 采样多个 completions，用它们之间的相对好坏作为学习信号。</p>
+<h2 id="8-kl-penalty-不要让模型偏离原模型太远">8. KL Penalty：不要让模型偏离原模型太远</h2>
+<p>这是 LLM RL 里极其关键的概念。</p>
+<p>如果只最大化 reward，模型可能会走向 reward hacking，比如：</p>
+<ul><li>输出 reward model 喜欢但人类不喜欢的模式；</li><li>过度迎合；</li><li>变得啰嗦；</li><li>学会格式投机；</li><li>牺牲语言流畅度；</li><li>偏离原本的知识和能力。</li></ul>
+<p>所以 RLHF 通常会加入 KL penalty：</p>
+<div class="math-block">$$
+R_{\text{total}} = R_{\text{reward}} - \beta \, KL(\pi_{\text{RL}} || \pi_{\text{ref}})
+$$</div>
+<p>直觉是：</p>
+<blockquote><p>你可以变好，但不要离原来的 SFT model 太远。</p></blockquote>
+<p>其中：</p>
+<ul><li>$\pi_{\text{RL}}$：正在训练的 policy；</li><li>$\pi_{\text{ref}}$：冻结的 reference model，通常是 SFT model；</li><li>$\beta$：控制约束强度。</li></ul>
+<p>KL penalty 是把 LLM RL 和普通 RL 区分开的核心之一。</p>
+<h2 id="9-ppo-经典-rlhf-的核心算法">9. PPO：经典 RLHF 的核心算法</h2>
+<p>PPO 的核心思想是：</p>
+<blockquote><p>每次更新 policy，但不要更新太猛。</p></blockquote>
+<p>它通过 clipping 或 KL penalty 限制新旧 policy 的变化。</p>
+<p>在 LLM 中，PPO 大致做：</p>
+<ol><li>用当前 policy 生成 responses；</li><li>用 reward model 打分；</li><li>加 KL penalty；</li><li>估计 advantage；</li><li>更新 policy；</li><li>更新 value function。</li></ol>
+<p>PPO 重要，不是因为它完美，而是因为它曾经是 RLHF 的标准做法，很多后续方法都是在回应 PPO 的复杂性和成本。</p>
+<h2 id="10-credit-assignment-整段回答得分-怎么分配到每个-token">10. Credit Assignment：整段回答得分，怎么分配到每个 token？</h2>
+<p>LLM 的 reward 通常是 sequence-level 的，比如整段回答得 0.8。</p>
+<p>但训练时要更新的是每个 token 的 log probability：</p>
+<div class="math-block">$$
+\log \pi(a_t \mid s_t)
+$$</div>
+<p>问题是：</p>
+<blockquote><p>最终 reward 应该归因于哪些 token？</p></blockquote>
+<p>例如模型解数学题，最后答案错了。到底是：</p>
+<ul><li>第一步理解题意错了？</li><li>中间代数错了？</li><li>最后抄错答案？</li><li>格式不符合要求？</li></ul>
+<p>这就是 credit assignment。</p>
+<p>对 LLM 来说它非常难，因为语言序列很长，reward 很稀疏，而且推理过程可能有很多隐含步骤。</p>
+<p>过程奖励模型、verifier、step-level reward、outcome reward 都是在处理这个问题。</p>
+<h2 id="11-reward-hacking-模型学会骗-reward">11. Reward Hacking：模型学会骗 Reward</h2>
+<p>Reward hacking 是 LLM RL 里必须理解的概念。</p>
+<p>意思是模型没有真正变好，而是学会了利用 reward 的漏洞。</p>
+<p>例子：</p>
+<pre><code class="language-text">Reward model 喜欢详细回答
+→ 模型开始无意义地变长
+
+Verifier 只检查最终答案格式
+→ 模型学会输出格式正确但推理胡编
+
+人类偏好数据偏爱自信语气
+→ 模型学会过度自信</code></pre>
+<p>所以 RL 不能只看 reward curve 上升，还要看真实 eval、人工检查、OOD 测试、安全测试。</p>
+<h2 id="12-distribution-shift-训练时和真实使用时分布不同">12. Distribution Shift：训练时和真实使用时分布不同</h2>
+<p>LLM 的 RL 训练通常依赖一批 prompts。模型在这些 prompts 上优化 reward，但真实用户的问题分布更复杂。</p>
+<p>可能出现：</p>
+<ul><li>reward model 在训练分布上有效，出分布失效；</li><li>policy 学会训练 prompt 的套路；</li><li>benchmark 提升，但真实体验下降；</li><li>某些能力被遗忘。</li></ul>
+<p>这也是为什么 RL 后通常还需要：</p>
+<ul><li>held-out eval；</li><li>adversarial eval；</li><li>human eval；</li><li>safety eval；</li><li>regression test。</li></ul>
+<h2 id="13-off-policy-offline-rl-能不能用旧数据训练">13. Off-policy / Offline RL：能不能用旧数据训练？</h2>
+<p>SFT 是典型的 offline supervised learning：用固定数据训练。</p>
+<p>但 RL 通常关心 policy 自己生成的数据。在 LLM 中，一个重要问题是：</p>
+<blockquote><p>能不能只用已有偏好数据，而不用在线采样？</p></blockquote>
+<p>这就引出一类方法：</p>
+<ul><li>DPO；</li><li>IPO；</li><li>KTO；</li><li>ORPO；</li><li>SimPO；</li><li>offline preference optimization。</li></ul>
+<p>严格说，DPO 不是传统意义上的 RL 算法，但它和 RLHF 的目标密切相关。它可以被理解为绕过显式 reward model 和 PPO，用 preference pairs 直接优化 policy。</p>
+<p>所以你学 LLM RL 时，应该同时理解：</p>
+<pre><code class="language-text">PPO-style online RLHF
+vs
+DPO-style offline preference optimization</code></pre>
+<h2 id="14-actor-critic-policy-model-value-model">14. Actor-Critic：Policy Model + Value Model</h2>
+<p>传统 PPO RLHF 常用 actor-critic 架构：</p>
+<div class="table-wrap compact-table" role="region" aria-label="Scrollable table" tabindex="0"><table><col><col><thead><tr><th>组件</th><th>在 LLM 里的含义</th></tr></thead><tbody><tr><td>Actor</td><td>生成回答的 LLM policy</td></tr>
+<tr><td>Critic</td><td>预测 value 的 value head / value model</td></tr>
+<tr><td>Reward model</td><td>给完整回答打分</td></tr>
+<tr><td>Reference model</td><td>用于 KL penalty 的冻结 SFT model</td></tr></tbody></table></div>
+<p>容易混淆的是：critic 和 reward model 不是一回事。</p>
+<ul><li>Reward model 评价“这段回答好不好”。</li><li>Critic / value model 预测“从这个状态继续生成，期望 reward 是多少”。</li></ul>
+<h2 id="15-entropy-保持输出多样性">15. Entropy：保持输出多样性</h2>
+<p>Entropy 衡量 policy 的随机性。</p>
+<p>在 LLM 里可以理解为 token distribution 有多“散”。</p>
+<p>较高 entropy：</p>
+<ul><li>输出更多样；</li><li>exploration 更强；</li><li>但可能更不稳定。</li></ul>
+<p>较低 entropy：</p>
+<ul><li>输出更确定；</li><li>但可能 mode collapse；</li><li>容易过早收敛到固定模板。</li></ul>
+<p>RL 训练如果过度压低 entropy，模型可能学到单一、僵硬、模板化的回答风格。</p>
+<h2 id="最小必学清单">最小必学清单</h2>
+<p>如果你是为了理解 RLHF / RLAIF / RLVR / GRPO / DPO，建议优先掌握这 10 个：</p>
+<ol><li>Policy</li><li>Reward</li><li>Trajectory</li><li>Return</li><li>Advantage</li><li>Value function</li><li>Policy gradient</li><li>PPO / KL constraint</li><li>Reward hacking</li><li>On-policy vs offline preference optimization</li></ol>
+<h2 id="一句话总结">一句话总结</h2>
+<p>对 LLM 而言，RL 的核心不是“智能体在环境里玩游戏”，而是：</p>
+<blockquote><p>把文本生成看作序列决策，用 reward 信号调整 token 分布，同时用 KL 等约束防止模型为了 reward 走偏。</p></blockquote>
+    </main>
+  </div>
+  <footer class="footer-note">
+    Source: <code>llm-rl-core-concepts.md</code>. This HTML file is self-contained except for MathJax, which is loaded from a CDN to render formulas.
+  </footer>
+</body>
+</html>
